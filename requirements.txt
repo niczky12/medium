@@ -1,1 +1,7 @@
+google.cloud.bigquery
+google.cloud.storage
+ipython
+pandas
 pre-commit >= 2.4.0
+pyarrow
+sklearn

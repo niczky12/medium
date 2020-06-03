@@ -1,0 +1,9 @@
+
+[flake8]
+exclude=models/*.py
+ignore = B950, D104, D105, D106, D202, D400, D405, D411, D417, E203, E266, E501, E731, N803, N806, W503, N813
+max-complexity = 10
+max-line-length = 60
+select = B, B9, C, D, E, F, N, W
+ignore-names = setUp, tearDown, setUpClass, tearDownClass, setUpTestData
+docstring-convention = google

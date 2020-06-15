@@ -1,0 +1,135 @@
+
+Now that we know how to read in basic delimited files, let's explore some more the rich features of CSV.read() function. Namely, we'll be looking at how to read in data so that the resulting DataFrame will end up with the right column types.
+This is a direct continuation of the previous post: Reading CSV files - Part I.
+
+As usual, we start by importing our packages.
+using CSV
+using DataFrames
+I will be reusing our convenience function write_string. I won't show this again here, you can find this in the previous post.
+Let's dive straight into our examples. Often, .csv files contain indicator or boolean columns. These columns tell us if something is true/false yes/no. In our example, I'll denote this true/false values with Y/N:
+my_animals = """Animal,Colour,Cover,Liked
+bunny,white,fur,Y
+dragon,green,scales,Y
+cow,brown,fur,N
+pigeon,grey,feathers,N
+pegasus,white,"feathers,fur",Y"""
+
+# let's save this as a csv file with our function
+write_string("animals_like.csv", my_animals);
+And let's try and read this in naively:
+animals_table = CSV.read("animals_like.csv")
+
+# let's check the column types
+eltypes(animals_table)
+4-element Array{Type,1}:
+ String                                     
+ String                                     
+ String                                     
+ CategoricalArrays.CategoricalString{UInt32}
+As you can see, when we read the file back into Julia we end up with a Categorical Strings column Liked. What would be more useful though is to have that column as a boolean so that we can easily index it. Fortunately, CSV.jl allows us to set the values of booleans. Let's see how we can do this:
+animals_table2 = CSV.read("animals_like.csv",
+    truestring="Y",
+    falsestring="N")
+
+eltypes(animals_table2)
+4-element Array{Type,1}:
+ String
+ String
+ String
+ Bool
+Now we can index naturally:
+animals_table2[animals_table2[:Liked], :]
+Animal	Colour	Cover	Liked
+1	bunny	white	fur	true
+2	dragon	green	scales	true
+3	pegasus	white	feathers,fur	true
+We could have just as easily had a file with T/F or other values. Try it out!
+Don't know about you, but I've had enough of our beloved animals. Let's look at our savings account instead:
+my_savings_string = """DateTime;Amount;Currency
+2001-01-01;10,56;€
+2001-02-01;12,40;€
+2001-03-01;6,50;€"""
+
+write_string("savings.csv", my_savings_string)
+86
+Now, if you're paying attention, you'll notice that the Amount column uses , instead of decimal points. This is very common in certain parts of the world, so if you're working with data coming from for example eastern Europe, chances are you'll see something like the above. How joyous!
+If we try and read this in normally, the resulting Amount column will end up being a String:
+savings = CSV.read("savings.csv", delim=';')
+
+print(savings)
+3×3 DataFrames.DataFrame
+│ Row │ DateTime   │ Amount │ Currency │
+├─────┼────────────┼────────┼──────────┤
+│ 1   │ 2001-01-01 │ 10,56  │ €        │
+│ 2   │ 2001-02-01 │ 12,40  │ €        │
+│ 3   │ 2001-03-01 │ 6,50   │ €        │
+eltypes(savings)
+3-element Array{Type,1}:
+ Date                                       
+ String                                     
+ CategoricalArrays.CategoricalString{UInt32}
+This is very inconvenient as it's quite difficult to do maths with Strings. To fix this issue, we can tell CSV.read() that our file has , as decimal separators:
+savings = CSV.read("savings.csv", delim=';', decimal=',')
+
+eltypes(savings)
+3-element Array{Type,1}:
+ Date                                       
+ Float64                                    
+ CategoricalArrays.CategoricalString{UInt32}
+Now we can add and substract as much as we want. For example, we can see how much money we saved month on month:
+savings[:Amount] .- [0, savings[:Amount][1:end-1]...]
+3-element Array{Float64,1}:
+ 10.56
+  1.84
+ -5.9
+Also notice that our parser successfully figured out that the first column is a date. If you were to have some other formatting for your date columns you can manually specify the format by setting (surprise, surprise...) dateformat:
+savings = CSV.read("savings.csv",
+    delim=';',
+    decimal=',',
+    dateformat="Y-m-d")
+
+eltypes(savings)
+3-element Array{Type,1}:
+ Date                                       
+ Float64                                    
+ CategoricalArrays.CategoricalString{UInt32}
+Out of pure luck, we've just won the lottery in April:
+my_savings_string *= "\n2001-04-01;1.000.006,57;€"
+
+write_string("savings_lottery.csv", my_savings_string)
+114
+No worries, let's update our DataFrame records and check if all is still good:
+savings_lottery = CSV.read("savings_lottery.csv",
+    delim=';',
+    decimal=',',
+    dateformat="Y-m-d")
+
+eltypes(savings_lottery)
+3-element Array{Type,1}:
+ Date                                       
+ String                                     
+ CategoricalArrays.CategoricalString{UInt32}
+Oh no, our Amount column (2nd) has turned back into a String. How annoying those thousands separators are! Well, you might think this is not a common scenario, but think again! Have you ever tried saving an Excel file as a csv? Guess what that does with your currency columns... Exactly this, puts idiotic thousand separators...
+We won't give up though, let's fix this cleanly!
+First we set up a function to parse such values:
+function money_cleaner(s)
+    s = replace(s, ".", "")
+    s = replace(s, ",", ".")
+    parse(Float64,s)
+end
+money_cleaner (generic function with 1 method)
+Our money_cleaner (not launderer) will take a single string s, remove all the dots, turn all the commas into dots and the parse that string into a Float64. We then instruct CSV.read() to apply this function to all elements of the Amount column when reading the file in. We do this by supplying a Dictionary with column names as keys and functions to be applied to those columns as values:
+savings_lottery = CSV.read("savings_lottery.csv",
+    delim=';',
+    decimal=',',
+    dateformat="Y-m-d",
+    transforms=Dict("Amount" => money_cleaner))
+
+eltypes(savings_lottery)
+3-element Array{Type,1}:
+ Date                                       
+ Float64                                    
+ CategoricalArrays.CategoricalString{UInt32}
+Finally, we're rich... Okay, maybe not, but at least we can read in all kinds of craziness easily all thanks to Julia and CSV.jl. Obviously, we could have done all of the above after reading the file in, but this is a lot cleaner as you're done with all the formatting fuff at the reading step. Neat!
+One last tip:
+If you're ever unsure about the structure of your data and you find yourself too lazy to look in bash, you can set rows=20 or to some other small value and read in the first few lines of the file to have a peek!

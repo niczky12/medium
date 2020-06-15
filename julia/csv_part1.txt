@@ -1,0 +1,125 @@
+A philosopher reading. Oil painting. Wellcome V0017680
+Have you ever received a .csv file with pipes | as separators? Or a file without headers? Or maybe you have some colleagues in Europe who use , instead of decimal point? Oh, the joys of working with csv files...
+
+In this post, I'll show you how you can read in a variety of delimiter separated file formats in Julia using CSV.jl.
+
+
+We will generate all the examples ourselves, so you can easily download the code and play around with the results in your own environment. Let's get started!
+First of all, we need to load in the package that we will use. Namely, CSV.jl. Even though the results will be DataFrames we don't necessarily need to include that package, but it might be a good idea to get into the habit of doing so.
+using CSV
+using DataFrames # you don't really need this
+The next step is to generate some data that we can actually read in. In the real world you probably don't have to do this as you will already have your data that you want to read in, but by providing an easily reproducible example you can play around with the code yourself!
+I'll set up the contents of our file as a multiline string using """. Then we can write to the file the old fashined way, by opening a connection and dumping all the contents of our string to that connection.
+my_content ="""Animal,Colour,Cover
+bunny,white,fur
+dragon,green,scales
+cow,brown,fur
+pigeon,grey,feathers"""
+
+open("animals.csv", "w") do out_file
+    # write will return the number of bytes written to the file
+    # that's what that 90 is about
+    write(out_file, my_content)
+end
+90
+The result is a "nice" .csv file as it is separated by commas, has headers and there is no weird quoting or other funny things going on... The default CSV.read() function should have no problem reading this in.
+animals = CSV.read("animals.csv")
+Since we will do this step (writing string to file) many times, I prepared a convenience function for later use:
+## let's set up some convenience functions
+function write_string(path, x)
+    open(path, "w") do out_file
+        write(out_file, x)
+    end
+end
+
+# let's test it
+write_string("animals2.csv", my_content)
+
+animals == CSV.read("animals2.csv")
+true
+With that out of the way let's try something more complicated and not so standard. You can use CSV.read for files with different delimiters. All you need to do is specify the delim keyword argument and you're good to go!
+Here it is in action:
+# first we replace the commas in the string with pipes
+my_content_piped = replace(my_content, ",", "|")
+
+# we create a new file
+write_string("animals_piped.pip", my_content_piped)
+
+# reading this in with defaults will give us a DataFrame
+# with only 1 column. Can you guess why?
+print(CSV.read("animals_piped.pip"))
+4×1 DataFrames.DataFrame
+│ Row │ Animal|Colour|Cover  │
+├─────┼──────────────────────┤
+│ 1   │ bunny|white|fur      │
+│ 2   │ dragon|green|scales  │
+│ 3   │ cow|brown|fur        │
+│ 4   │ pigeon|grey|feathers │
+# But if we set delim = '|' then all is as before
+animals == CSV.read("animals_piped.pip", delim='|')
+true
+The same goes for any other delimiters, such as ; and tabs (\t). You just need to set delim and you're good to go.
+Another common scenario is when the file we have to read in has no headers. Let us prepare such an example:
+# Can you figure out how this works?
+no_headers_string = string(split(my_content, '\n')[2:end] .* '\n'...)
+
+write_string("no_headers.csv", no_headers_string)
+
+CSV.read("no_headers.csv")
+bunny	white	fur
+1	dragon	green	scales
+2	cow	brown	fur
+3	pigeon	grey	feathers
+As we can see above, using the defaults won't work as we don't want our columns to be called bunny, white and fur... That just wouln't be sensible!
+Indeed, you have 2 options to solve this issue. One, you can just set header = false, in which case your result will end up with generic column names. Or you can also set the column names manually yourself under the same argument:
+CSV.read("no_headers.csv", header = false)
+Column1	Column2	Column3
+1	bunny	white	fur
+2	dragon	green	scales
+3	cow	brown	fur
+4	pigeon	grey	feathers
+CSV.read("no_headers.csv", header = ["Animal", "Colour", "Cover"])
+Animal	Colour	Cover
+1	bunny	white	fur
+2	dragon	green	scales
+3	cow	brown	fur
+4	pigeon	grey	feathers
+Another typical oddity of delimited files is that the fields themselves can contain delimiters. In this case, one usually quotes the field so that the parser can ignore the delimiter easily.
+Let's add another animal to our list to demonstrate this:
+my_new_content = """Animal,Colour,Cover
+bunny,white,fur
+dragon,green,scales
+cow,brown,fur
+pigeon,grey,feathers
+pegasus,white,"feathers,fur"
+"""
+
+write_string("animals_quoted.csv", my_new_content)
+120
+CSV.read("animals_quoted.csv")
+Animal	Colour	Cover
+1	bunny	white	fur
+2	dragon	green	scales
+3	cow	brown	fur
+4	pigeon	grey	feathers
+5	pegasus	white	feathers,fur
+You might not be surprised, but CSV.jl is clever enough to handle this by default. But the default is not good enough for us. What if we have some nutjob preparing the files for us and that person decides to use & as quoting chars?? Madness descends upon us...
+write_string("animals_&.csv", replace(my_new_content, "\"", "&"))
+CSV.read("animals_&.csv")
+Animal	Colour	Cover
+1	bunny	white	fur
+2	dragon	green	scales
+3	cow	brown	fur
+4	pigeon	grey	feathers
+5	pegasus	white	&feathers
+Thankfully, we can set different quoting characters inside CSV.read() to save the day:
+CSV.read("animals_&.csv", quotechar = '&')
+Animal	Colour	Cover
+1	bunny	white	fur
+2	dragon	green	scales
+3	cow	brown	fur
+4	pigeon	grey	feathers
+5	pegasus	white	feathers,fur
+(But you should still get rid of the nutjob if possible... Seriously people, don't do this!)
+By now, you should be able to read in all kinds of delimited files using CSV.jl. One thing that we haven't talked about here are the different column types for the resulting DataFrame. For example, what if you have booleans in the file? Or some date formats? Or some crazy (but quite common) money formatting going on (I'm looking at you thousand separators...)?
+Well then you can still use CSV.jl to read your files in cleanly. I'll be posting another article on techniques to handle those issues so stay tuned (Sign up for notifications wink wink)!

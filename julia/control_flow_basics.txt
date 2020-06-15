@@ -1,0 +1,117 @@
+Continuing our exploration of Julia basics, let's take a look at control flow in Julia.
+As the name suggests control flow operators help us shape the flow of the program. One typical example might be break.
+break tells Julia to exit the loop or do block it's currently in.
+The pretty stream on the way down to the High Force viewing point - geograph.org.uk - 1022181
+
+To understand these concept, we'll attempt another problem. Nothing better than some hands on experience.
+Our challenge is as follows: Given 2 integers (a, b) print the smallest (up to) 5 integers between a and b such that
+we're not printing numbers divisible by 3.
+For example using a=5 and b=23 we should return:
+
+5
+7
+8
+10
+11
+If a and b are closer to each other we print everything up to b. Here's another example with a=2 b=4
+
+2
+4
+If you're a complete newcomer to programming, you might want to check out the fizzbuzz post where I explain mod operator
+etc.
+Let's begin by printing all the number between a and b:
+julia> function fancy_printer(a,b)
+for i in a:b
+println(i)
+end
+end
+fancy_printer (generic function with 1 method)
+
+julia> fancy_printer(3,7)
+3
+4
+5
+6
+7
+continue in Julia helps us to skip an iteration of the for loop. We'll use this to skip priting numbers divisible by 3.
+julia> function fancy_printer(a,b)
+for i in a:b
+if mod(i,3) == 0
+continue
+end
+
+println(i)
+end
+end
+fancy_printer (generic function with 1 method)
+
+julia> fancy_printer(3,7)
+4
+5
+7
+Alright, one problem down. But what happens if b-a > 5?
+julia> fancy_printer(3,12)
+4
+5
+7
+8
+10
+11
+That means we have to be careful not with what we print, but how many times we print in total.
+To handle this, we'll introduce another variable called printed that we can use to count the number of times we printed.
+If this value reaches 5 we can just end the for loop with break and be done with it.
+julia> function fancy_printer(a,b)
+
+printed = 0
+
+for i in a:b
+if printed == 5
+break
+end
+
+if mod(i, 3) == 0
+continue
+end
+
+println(i)
+printed += 1
+end
+
+end
+fancy_printer (generic function with 1 method)
+
+julia>
+fancy_printer(3,12)
+4
+5
+7
+8
+10
+And job done. We print only 5 numbers and none of them are divisible by 3. You might want to check a few more test cases
+at this point just to make sure our function indeed does what we want it to do.
+If you want to make fancy_printer even fancier you can do so by using some ternary operators in Julia to make your code
+more compact. The ternary operators && and || can compress the if blocks into a single line. Here's how our code would
+look like:
+julia> function fancy_printer(a,b)
+
+printed = 0
+
+for i in a:b
+
+printed == 5 && break
+mod(i, 3) == 0 && continue
+
+println(i)
+printed += 1
+end
+end
+fancy_printer (generic function with 1 method)
+
+julia>
+fancy_printer(3,12)
+4
+5
+7
+8
+10
+Isn't this pretty? Julia is just pure magic!

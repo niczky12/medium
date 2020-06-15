@@ -1,0 +1,157 @@
+In a previous post, we tackled the FizzBuzz challenge. If you're anything like me, you've already had some experience using vectorised functions in R or via Python's numpy library. Let's see how we can use Julia similarly.
+
+
+
+
+Vectorised functions are great as they reduce the clutter often associated with for loops. For example if we have a numeric vector called a and we want to add 1 to each element, we don't want to loop trough each element of a and add 1 to them.
+
+Here's an example of how we can do this in a non-vectorised form (via a for loop):
+julia> a = [1,2,3];
+
+julia> for i in 1:length(a)
+    a[i] += 1
+end
+
+julia> print(a)
+[2, 3, 4]
+It get's the job done, but it's not the prettiest and makes the code harder to read. Here's how we can do the same thing via vectorisation:
+julia> a = [1,2,3];
+
+julia> a .+ 1;
+
+julia> print(a)
+[1, 2, 3]
+The . tells Julia to broadcast the operator to each element of the object. So we're adding 1 to each and every element of a.
+After this short intro to vectorised operators, I want to have a go at the FizzBuzz challenge again and see how we can solve the same problem but with vectorised functions.
+First, let's rephase the problem a little bit. Instead of printing the numbers, Fizzes and Buzzes, we'll return all of them together as a vector. I'll break down the problem the same way as before, so if you haven't seen the previous posts, now would be a good time to check it out!
+First, let's return the numbers up until n as a vector:
+julia> function fizzbuzz(n)
+    return collect(1:n)
+end
+fizzbuzz (generic function with 1 method)
+
+julia> fizzbuzz(5)
+5-element Array{Int64,1}:
+ 1
+ 2
+ 3
+ 4
+ 5
+This works. Let's see if we can print Fizz for each number that's divisible by 3. We can do this by replacing all places that are divisble by 3 with a Fizz string.
+julia> function fizzbuzz(n)
+    numbers = 1:n
+    
+    # first we convert the numbers to strings
+    result = string.(numbers)
+    
+    result[mod.(numbers, 3) .== 0] = "Fizz"
+    
+    return result
+end
+fizzbuzz (generic function with 1 method)
+
+julia> fizzbuzz(7)
+7-element Array{String,1}:
+ "1"   
+ "2"   
+ "Fizz"
+ "4"   
+ "5"   
+ "Fizz"
+ "7"
+Just to give a bit more explanation here, we're first converting our numbers to strings. We don't necessarily have to do this, but it's neater to have same types in an array. We do this by applying the string() function elementvise (.) to all elements of numbers.
+The next step is to replace the numbers divisible by 3 with Fizz. We calculate all the modulos of the numbers with mod.(). Having the reminders we can then compare each of those remainders and get a boolean indexing array that says true at each index divisible by 3 and false otherwise. One can use boolean indexing to select specific places in the array. So we only replace every 3rd element in our array with Fizz. Feel free to break these steps down and try them in your own Julia REPL!
+Let's add the Buzzes now!
+julia> function fizzbuzz(n)
+    numbers = 1:n
+    
+    # first we convert the numbers to strings
+    result = string.(numbers)
+    
+    result[mod.(numbers, 3) .== 0] = "Fizz"
+    result[mod.(numbers, 5) .== 0] = "Buzz"
+
+    return result
+end
+fizzbuzz (generic function with 1 method)
+
+julia> fizzbuzz(7)
+7-element Array{String,1}:
+ "1"   
+ "2"   
+ "Fizz"
+ "4"   
+ "Buzz"
+ "Fizz"
+ "7"
+And finaly the FizzBuzz elements:
+julia> function fizzbuzz(n)
+    numbers = 1:n
+    
+    # first we convert the numbers to strings
+    result = string.(numbers)
+    
+    result[mod.(numbers, 3) .== 0] = "Fizz"
+    result[mod.(numbers, 5) .== 0] = "Buzz"
+    result[(mod.(numbers, 3) .== 0) .* (mod.(numbers, 5) .== 0)] = "FizzBuzz"
+    
+    return result
+end
+fizzbuzz (generic function with 1 method)
+
+julia> fizzbuzz(16)
+16-element Array{String,1}:
+ "1"       
+ "2"       
+ "Fizz"    
+ "4"       
+ "Buzz"    
+ "Fizz"    
+ "7"       
+ "8"       
+ "Fizz"    
+ "Buzz"    
+ "11"      
+ "Fizz"    
+ "13"      
+ "14"      
+ "FizzBuzz"
+ "16"
+We used .* to "multiply" two boolean arrays. You can think of * as a boolean AND in this case.
+The above certainly achieves what we want, but it's not exactly the prettiest. Let's clean it up a little bit.
+julia> function fizzbuzz(n)
+    
+    numbers = 1:n
+    result = string.(numbers)
+    
+    fizzers = mod.(numbers,3) .== 0
+    buzzers = mod.(numbers,5) .== 0
+    
+    result[fizzers] = "Fizz"
+    result[buzzers] = "Buzz"
+    result[fizzers .* buzzers] = "FizzBuzz"
+    
+    return result
+end
+fizzbuzz (generic function with 1 method)
+
+julia> fizzbuzz(16)
+16-element Array{String,1}:
+ "1"       
+ "2"       
+ "Fizz"    
+ "4"       
+ "Buzz"    
+ "Fizz"    
+ "7"       
+ "8"       
+ "Fizz"    
+ "Buzz"    
+ "11"      
+ "Fizz"    
+ "13"      
+ "14"      
+ "FizzBuzz"
+ "16"
+And that's it. This concludes our little tutorial on vectorised functions. Hope you enjoed this example. If you have any questions or requests let me know in the comments.
+I'd also recommend that you check out my previous post on FizzBuzz and compare the solution of that with this new fancy vectorised one!

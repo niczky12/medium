@@ -50,7 +50,7 @@ repos:
     name: safety-dataflow
     files: dataflow/requirements.txt
 - repo: git://github.com/Lucas-C/pre-commit-hooks-bandit
-  sha: v1.0.4
+  rev: v1.0.4
   hooks:
   - id: python-bandit-vulnerability-check
     name: bandit

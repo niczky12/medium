@@ -21,6 +21,11 @@ BUCKET_NAME = f"yetanothertestbucket-{sha1(PROJECT_NAME.encode()).hexdigest()}"
 LOCATION = "europe-west2"
 DATASET_NAME = "loadbench"
 
+# configure plots
+plt.rcParams["figure.figsize"] = (10, 8)
+sns.set_style("whitegrid")
+
+
 # create a random dataset
 def make_int(x: int) -> int:
     return int(x * 100_000)
@@ -161,8 +166,6 @@ for fname in file_names:
 
 
 # plot the sizes
-plt.rcParams["figure.figsize"] = (10, 8)
-sns.set_style("whitegrid")
 ax = sns.barplot(
     x="extension",
     y="size",
@@ -174,6 +177,7 @@ plt.title("File sizes for different formats")
 plt.savefig(
     "tech/biquery/benchmarks/file_sizes.png", dpi=120
 )
+plt.show()
 
 # parquet has more overhead but when it comes to
 # larger sizes, it provices better compression, especially
@@ -220,7 +224,8 @@ def benchmark(
     from_blob = bucket.get_blob(blob_name)
 
     # copy the files
-    new_path = f"{uuid4().hex}_{blob_name}"
+    add_prefix = lambda s: f"{uuid4().hex}_{s}"
+    new_path = add_prefix(blob_name)
 
     for i in range(duplicate):
         new_name = f"{new_path}/{blob_name}_{i:05d}"

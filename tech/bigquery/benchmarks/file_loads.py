@@ -3,6 +3,8 @@ import hashlib
 import os
 import re
 from uuid import uuid4
+import datetime
+from hashlib import sha1
 
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -15,7 +17,7 @@ from sklearn import datasets
 # setup globals
 FOLDER = "data"
 PROJECT_NAME = "medium-279206"
-BUCKET_NAME = f"yetanothertestbucket-{hashlib.sha1(PROJECT_NAME.encode()).hexdigest()}"
+BUCKET_NAME = f"yetanothertestbucket-{sha1(PROJECT_NAME.encode()).hexdigest()}"
 LOCATION = "europe-west2"
 DATASET_NAME = "loadbench"
 
@@ -29,7 +31,7 @@ def make_datetime(x: int) -> datetime.datetime:
 
 
 def make_string(x: int) -> str:
-    return hashlib.sha1(str(x).encode()).hexdigest()
+    return sha1(str(x).encode()).hexdigest()
 
 
 def make_char(x: int) -> str:

@@ -1,0 +1,215 @@
+What is a join? Why would we do it? And how would we do it using DataFrames.jl? These are the questions we're answering in this post.
+Gauguin, Paul - Pastorales Tahitiennes 
+
+Last time, we figured out how to index, sort and aggregate our data using DataFrames.jl. Joins is another very useful and important operation that arises in the world of tabulated data. A join across two dataframes is the action of combining the two dataset based on a column that exists across the two tables. We call this column the key. So, each record from the first table is matched to a record in the second table - as long as the records' keys match up.
+Let's demonstrate this via a small example. First, we set up table A:
+using DataFrames
+
+A_names = DataFrame(id = 1:5,
+    name = ["Alice", "Bob", "Claire", "Daniel", "Edward"])
+    
+A_names
+id	name
+1	1	Alice
+2	2	Bob
+3	3	Claire
+4	4	Daniel
+5	5	Edward
+This table has all the ids of individuals and their names. Let's say we have another table, which has the earnings of these individuals:
+# we generate some random numbers, so this will make sure the results
+# are reproducible
+srand(5)
+
+B_earnings = DataFrame(id = 3:8,
+    salary = rand(1500:5000, 6))
+    
+B_earnings
+id	salary
+1	3	4755
+2	4	2533
+3	5	2084
+4	6	4111
+5	7	1848
+6	8	3084
+We now have 2 tables:
+A_names: holds the ids and names
+B_earnings: holds the ids and earnings
+We would like to combine the 2 tables so that we can see the names and earnings together. We do a join!
+join(A_names,
+    B_earnings,
+    on = :id,
+    kind = :inner)
+id	name	salary
+1	3	Claire	4755
+2	4	Daniel	2533
+3	5	Edward	2084
+Let's go trough this in detail. Argument 1-2 are the two tables we're joining. Argument 3 on tells us what the key column is. We'll use this column to match the observations across the tables. Argument 4 kind is set to inner. This means that we only want to keep users whose keys (ids) appear in both tables.
+As you can see, we ended up with 3 rows and 3 columns. Now go back to the beginning and check out how the 2 original datasets looked like. Make sure you understand why we ended up with these rows only.
+There are other kinds of joins too as demonstrated by this graphic:
+
+
+Fear not, we will now go trough all of these joins one-by-one! You don't have to rely on these Venn-diagrams if you look at some example data.
+First, left join:
+join(A_names,
+    B_earnings,
+    on = :id,
+    kind = :left)
+id	name	salary
+1	1	Alice	missing
+2	2	Bob	missing
+3	3	Claire	4755
+4	4	Daniel	2533
+5	5	Edward	2084
+Here we kept ALL of the observations from table A no matter what's going on in table B. For records without a match in table A, the earnings column has missing as value. This makes sense as we never actually saw those earning figures.
+Of course, there is also a right join. This keeps all rows from the second table:
+join(A_names,
+    B_earnings,
+    on = :id,
+    kind = :right)
+id	name	salary
+1	3	Claire	4755
+2	4	Daniel	2533
+3	5	Edward	2084
+4	6	missing	4111
+5	7	missing	1848
+6	8	missing	3084
+If you use atom, the above prints very nicely, with the missing values faded out:
+
+
+There are some cases when you want to keep all your data from both tables. This is called an outer join. Looking at the Venn-diagram above (it's called full join there) and the name will make more sense.
+join(A_names,
+    B_earnings,
+    on = :id,
+    kind = :outer)
+id	name	salary
+1	1	Alice	missing
+2	2	Bob	missing
+3	3	Claire	4755
+4	4	Daniel	2533
+5	5	Edward	2084
+6	6	missing	4111
+7	7	missing	1848
+8	8	missing	3084
+These 4 joins make up the basics of table merging. If nothing else, remember these four:
+inner: keeps only rows whose keys appear in both tables
+left/right: keeps only keys that appear in the left (1st) or right (2nd) table
+outer: keeps all the keys from both tables
+Now onto some less common, but just as useful joins.
+Let's say you want to look at people's names who we have earnings data for, but you don't actually want to have all the columns from the second table. That's what semi join does. It gives you the same rows as an inner join, but doesn't add any columns from the 2nd table:
+join(A_names,
+    B_earnings,
+    on = :id,
+    kind = :semi)
+id	name
+1	3	Claire
+2	4	Daniel
+3	5	Edward
+You want to see something crazy? Check out a cross join:
+crazy_table = join(A_names,
+    B_earnings,
+    kind = :cross,
+    makeunique = true)
+
+head(crazy_table)
+id	name	id_1	salary
+1	1	Alice	3	4755
+2	1	Alice	4	2533
+3	1	Alice	5	2084
+4	1	Alice	6	4111
+5	1	Alice	7	1848
+6	1	Alice	8	3084
+What does this do? It joins all rows from table A to all rows of table B. You might say this doesn't make any sense, but wait until you want to come up with all the combinations of products/objects in a project... ;)
+Want more proof that this indeed gives all combinations? The table has 30 rows:
+size(crazy_table)
+(30, 4)
+Remember that table A had 5 and table B had 6 rows: 5 x 6 = 30.
+To convince you that this is indeed useful. Let's say you want to design the new Twix by changing the ingredients. To understand profitability, you also need to figure out the total costs of the chocolate:
+base_layer = DataFrame(base = ["biscuit", "chocolate biscuit", "marshmallow"],
+    base_cost = [0.05, 0.08, 0.03])
+    
+coating_layer = DataFrame(coating = ["caramel", "chocolate sauce"],
+    coating_cost = [0.01, 0.05])
+
+innovation_table = join(base_layer,
+    coating_layer,
+    kind = :cross)
+
+innovation_table[:total_cost] = innovation_table[:base_cost] .+ innovation_table[:coating_cost]
+
+innovation_table
+base	base_cost	coating	coating_cost	total_cost
+1	biscuit	0.05	caramel	0.01	0.06
+2	biscuit	0.05	chocolate sauce	0.05	0.1
+3	chocolate biscuit	0.08	caramel	0.01	0.09
+4	chocolate biscuit	0.08	chocolate sauce	0.05	0.13
+5	marshmallow	0.03	caramel	0.01	0.04
+6	marshmallow	0.03	chocolate sauce	0.05	0.08
+Now you believe me? cross joins make chocolate innovation easier, so they are usueful!
+Back to some more serious matters. Extending the above joins to work with 2 keys is very easy. In fact, all you have to do is pass a vector of Symbols to the on argument of join().
+To demonstrate this, let's copy and add another column to both of our datasets. This will contain city names where the users live.
+# make sure we don't mess with the original table
+C_names= deepcopy(A_names)
+
+# set the seed for reproducible, but random example
+srand(51)
+C_names[:city] = rand(["New York", "London"], nrow(C_names))
+
+# do the same for earnings
+srand(1)
+D_earnings = deepcopy(B_earnings)
+D_earnings[:city] = rand(["New York", "London"], nrow(D_earnings))
+One way you can think of this is that we have 2 separate databases. One in New York and one in London. With the systems not knowing about each other they keep track of the users' ids separately. So the name of user 1 in London is not the same as user 1 in New York. Indeed they are different users! So when we merge the 2 tables we want to make sure that the names and earnings are not only matched in user ids but also on the database name.
+Let's do some joining on both columns then:
+join(C_names,
+    D_earnings,
+    on = [:id, :city],
+    kind = :inner)
+id	name	city	salary
+1	3	Claire	New York	4755
+2	5	Edward	London	2084
+Looking at an outer join, it's easier see which records will survive the join exactly:
+join(C_names,
+    D_earnings,
+    on = [:id, :city],
+    kind = :outer)
+id	name	city	salary
+1	1	Alice	London	missing
+2	2	Bob	New York	missing
+3	3	Claire	New York	4755
+4	4	Daniel	London	missing
+5	5	Edward	London	2084
+6	4	missing	New York	2533
+7	6	missing	London	4111
+8	7	missing	London	1848
+9	8	missing	New York	3084
+Take a careful look to understand why we have line 6 as is! I'm happy to help in the comments section if needed.
+One problem that you might face is that your key columns don't have the same names across your dataframes. If that's the case then - at this point at least - you will have to rename one of the columns to make the names the same.
+Here's an example:
+# someone named these badly...
+another_earnings = DataFrame(another_id = 3:8,
+    salary = rand(1500:5000, 6))
+When you try to join this to the names table it throws an error:
+join(A_names,
+    another_earnings,
+    on = :id,
+    kind = :inner)
+ERROR: KeyError: key :id not found
+It's quite clear that this is a KeyError as it didn't find the id column in table B. You can rename that column with rename!:
+rename!(another_earnings, :another_id => :id)
+id	salary
+1	3	2052
+2	4	3553
+3	5	3216
+4	6	4800
+5	7	1756
+6	8	4089
+It's really obvious that we're mapping (renaming) another_id to id. Once this is done the following works just fine:
+join(A_names,
+    another_earnings,
+    on = :id,
+    kind = :inner)
+id	name	salary
+1	3	Claire	2052
+2	4	Daniel	3553
+3	5	Edward	3216
+After working your way trough this tutorial, there is no kind of join that could stop you. You can join any tables you want in any way you want. Check back later for some more content on doing Data Science with Julia!

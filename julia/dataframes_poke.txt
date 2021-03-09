@@ -1,0 +1,238 @@
+Let's explore some of the basic functionalities of DataFrames in Julia. If you've had some experience with R's DataFrames or Python's Pandas then this should be smooth sailing for you. If you have no previous dataframes experience, don't worry this is the most basic intro you can imagine! :)
+
+
+
+Why DataFrames? We already know that Julia has built in support for array like objects, so why would we need another rectengular data format? Well, in data science there are many cases when we have a mixture of numerical and string data in the same table. Think of for example an employment table. One column might be whether the individual is employed or not (Boolean) another might contain info on the industry that person works in (string) and another the salary as a float. DataFrames are great for handling such data as it keeps your observations together without penalising you for mixing data types.
+In a previous post I've already shown how to read in tabular file formats using CSV.jl, so we'll skip that part and use the RDatasets package to play around with a real classic, the iris dataset. It's not a requirement to know what's in this data, but do a quick Google search if you're curious. In summary this table has info on a bunch of pretty flowers.
+Let's read in this file:
+using DataFrames
+using RDatasets
+
+# we need the iris table from the datasets directory
+iris = dataset("datasets", "iris")
+As a first step it might be a good idea to actually know what the columns are called in this data. Ie. what it is that we're looking at. DataFrames.jl provides the same syntax as R for this:
+names(iris)
+5-element Array{Symbol,1}:
+ :SepalLength
+ :SepalWidth 
+ :PetalLength
+ :PetalWidth 
+ :Species
+If you look closely, you can see that these names are actually Symbols and not strings. There is a very good reason for this but I won't go into the details here. Just remember that you can create symbols by using : before a name or by using the Symbol constructor:
+a_string = "column_name"
+a_symbol = :column_name
+another_symbol = Symbol("column_name")
+This will be important when we come to subsetting DataFrames.
+Checking how many rows and columns we have is also a good idea:
+size(iris)
+(150, 5)
+This tells us that we have 150 rows (first index) and 5 columns (2nd index).
+You can always peek at your data by looking at the first few rows. This is useful when you're trying to familiarise yourself with the structure of the table and get an idea about the values it holds:
+head(iris)
+SepalLength	SepalWidth	PetalLength	PetalWidth	Species
+1	5.1	3.5	1.4	0.2	setosa
+2	4.9	3.0	1.4	0.2	setosa
+3	4.7	3.2	1.3	0.2	setosa
+4	4.6	3.1	1.5	0.2	setosa
+5	5.0	3.6	1.4	0.2	setosa
+6	5.4	3.9	1.7	0.4	setosa
+You can also check the last few rows using tail:
+tail(iris)
+SepalLength	SepalWidth	PetalLength	PetalWidth	Species
+1	6.7	3.3	5.7	2.5	virginica
+2	6.7	3.0	5.2	2.3	virginica
+3	6.3	2.5	5.0	1.9	virginica
+4	6.5	3.0	5.2	2.0	virginica
+5	6.2	3.4	5.4	2.3	virginica
+6	5.9	3.0	5.1	1.8	virginica
+If you're not satisfyed with the default 5 rows, you can change it by passing a 2nd argument to both head and tail:
+head(iris, 3)
+SepalLength	SepalWidth	PetalLength	PetalWidth	Species
+1	5.1	3.5	1.4	0.2	setosa
+2	4.9	3.0	1.4	0.2	setosa
+3	4.7	3.2	1.3	0.2	setosa
+If you're working with Julia you usually don't need to do this though, as simply saying iris will print the first few and the last few columns of the dataset.
+As I mentioned in the beginning, a DataFrame can hold columns with different types. To see the types, you can use the eltypes function:
+eltypes(iris)
+5-element Array{Type,1}:
+ Float64                                   
+ Float64                                   
+ Float64                                   
+ Float64                                   
+ CategoricalArrays.CategoricalString{UInt8}
+You can also use showcols() and see the number of missing values too. But note that this prints the values rather than returning an array of DataFrame, so I'd recommend you stick to eltypes.
+Notice how Species has a CategoricalString type. You can think of this as a factor variable in R. It allows us to represent low cardinality strings as integers but show us the human readable values (levels) instead. In this case we only have 3 Species in the dataset, so it makes sense to have them as categorical variables.
+If you want to gain a quick intuition about your dataset then make friends with describe(). This handy function shows us the main summary stats for each column and also tells us their types!
+describe(iris)
+SepalLength
+Summary Stats:
+Mean:           5.843333
+Minimum:        4.300000
+1st Quartile:   5.100000
+Median:         5.800000
+3rd Quartile:   6.400000
+Maximum:        7.900000
+Length:         150
+Type:           Float64
+
+SepalWidth
+Summary Stats:
+Mean:           3.057333
+Minimum:        2.000000
+1st Quartile:   2.800000
+Median:         3.000000
+3rd Quartile:   3.300000
+Maximum:        4.400000
+Length:         150
+Type:           Float64
+
+PetalLength
+Summary Stats:
+Mean:           3.758000
+Minimum:        1.000000
+1st Quartile:   1.600000
+Median:         4.350000
+3rd Quartile:   5.100000
+Maximum:        6.900000
+Length:         150
+Type:           Float64
+
+PetalWidth
+Summary Stats:
+Mean:           1.199333
+Minimum:        0.100000
+1st Quartile:   0.300000
+Median:         1.300000
+3rd Quartile:   1.800000
+Maximum:        2.500000
+Length:         150
+Type:           Float64
+
+Species
+Summary Stats:
+Length:         150
+Type:           CategoricalArrays.CategoricalString{UInt8}
+Number Unique:  3
+Now that we have a rough idea about what we're working with let's start slicing and dicing. It's quite commont that we would like to extract a column or columns from our dataset. We can do this by referring to the columns by their names or indexing using brackets []. Remeber that this DataFrame has symbols as column names!
+iris[:SepalLength]
+150-element Array{Float64,1}:
+ 5.1
+ 4.9
+ 4.7
+ 4.6
+ 5.0
+ 5.4
+ 4.6
+ 5.0
+ 4.4
+ 4.9
+ ⋮  
+ 6.9
+ 5.8
+ 6.8
+ 6.7
+ 6.7
+ 6.3
+ 6.5
+ 6.2
+ 5.9
+iris[1]
+150-element Array{Float64,1}:
+ 5.1
+ 4.9
+ 4.7
+ 4.6
+ 5.0
+ 5.4
+ 4.6
+ 5.0
+ 4.4
+ 4.9
+ ⋮  
+ 6.9
+ 5.8
+ 6.8
+ 6.7
+ 6.7
+ 6.3
+ 6.5
+ 6.2
+ 5.9
+Then we can operate on these arrays as usual:
+sum(iris[1])
+876.5
+It's also easy to select rows. The trick here is that by default DataFrames looks for columns when we use integers as indexes. To select rows, we just need to tell the DataFrames which columns we want to pick too.
+If we want all available columns, we can just pass a colon : for the second argument:
+# this gives us the 1st row and all the columns
+iris[1,:]
+SepalLength	SepalWidth	PetalLength	PetalWidth	Species
+1	5.1	3.5	1.4	0.2	setosa
+Slicing is also valid, so we can say: give us all the rows between 1 and 10:
+iris[1:10, :]
+SepalLength	SepalWidth	PetalLength	PetalWidth	Species
+1	5.1	3.5	1.4	0.2	setosa
+2	4.9	3.0	1.4	0.2	setosa
+3	4.7	3.2	1.3	0.2	setosa
+4	4.6	3.1	1.5	0.2	setosa
+5	5.0	3.6	1.4	0.2	setosa
+6	5.4	3.9	1.7	0.4	setosa
+7	4.6	3.4	1.4	0.3	setosa
+8	5.0	3.4	1.5	0.2	setosa
+9	4.4	2.9	1.4	0.2	setosa
+10	4.9	3.1	1.5	0.1	setosa
+But there's more! We can also pass in a boolean vector (same length as many rows we have). But why and how do we get such an array? One typical usecase is that we want to select rows based on some logic. Let's say we want to find all flowers where PetalLength is over 5. We know how to do that comparison already:
+# the dot tells Julia to compare each element of the array
+over_five = iris[:PetalLength] .> 5
+This gets a true value for each element where this logic is satisfyed and false values otherwise. Now we can pass this in as a selector, to end up with observations that we actually need:
+head(iris[over_five,:])
+SepalLength	SepalWidth	PetalLength	PetalWidth	Species
+1	6.0	2.7	5.1	1.6	versicolor
+2	6.3	3.3	6.0	2.5	virginica
+3	5.8	2.7	5.1	1.9	virginica
+4	7.1	3.0	5.9	2.1	virginica
+5	6.3	2.9	5.6	1.8	virginica
+6	6.5	3.0	5.8	2.2	virginica
+In order to try some additional indexing, I'm going to indtroduce you to a higher order function, called colwise. Higher order you say? A higher order function is a function that takes a function as an argument. Why would we need this? To make our code pretty and easily readable.
+In our case, colwise takes a function and a DataFrame and then applies that function column wise (to each column) to the DataFrame. A simple example would be to get the maximum value for each column:
+colwise(maximum, iris)
+ERROR: ArgumentError: Unordered CategoricalValue objects cannot be tested for order using <. Use isless instead, or call the ordered! function on the parent array to change this
+Oh, but this gives us an error. Fotunately the error is pretty clear. Get into the habit of reading your error messages! It'll save you loads of time later on. Here the error is about comparing CategoricalValue objects. It's clear that to find the maximum of an array we need to be able to compare values to each other, but for categorical values this doesn't make much sense. Who is to say that setosa is better than virginica? To solve the error, we just need to exclude the categorical Species column:
+colwise(maximum, iris[:,1:4])
+4-element Array{Float64,1}:
+ 7.9
+ 4.4
+ 6.9
+ 2.5
+Look how I just selected the first 4 columns... This is not recommended. Let's say you write this piece of code and then your collegaue comes in and jumbles the iris dataset, then the above might give an error as before. To avoid this, we should pick the columns implicitly by their names:
+# first we find all column names that are not Species
+numerical_cols = filter(x->x!=:Species, names(iris))
+numerical_cols
+4-element Array{Symbol,1}:
+ :SepalLength
+ :SepalWidth 
+ :PetalLength
+ :PetalWidth
+Yes, filter is another higher order function. Can you guess what it does? :)
+Now we can safely index using this array of Symbols:
+head(iris[:,numerical_cols])
+SepalLength	SepalWidth	PetalLength	PetalWidth
+1	5.1	3.5	1.4	0.2
+2	4.9	3.0	1.4	0.2
+3	4.7	3.2	1.3	0.2
+4	4.6	3.1	1.5	0.2
+5	5.0	3.6	1.4	0.2
+6	5.4	3.9	1.7	0.4
+And to prove that this solves the over-eager co-worker problem I'll reshuffle the datase, by reversing the columns just to prove a point:
+new_iris = iris[:,names(iris)[end:-1:1]]
+# this will now fail
+colwise(maximum, new_iris[:,1:4])
+ERROR: ArgumentError: Unordered CategoricalValue objects cannot be tested for order using <. Use isless instead, or call the ordered! function on the parent array to change this
+# but this still works
+colwise(maximum, new_iris[numerical_cols])
+4-element Array{Float64,1}:
+ 7.9
+ 4.4
+ 6.9
+ 2.5
+Thanks for reading all the way to the end. Now you should have all the skills required to do some very simple poking at your data using DataFrames.jl. Come back here later for some more advanced tutorials on how to aggregate and visualise your data.
+Also, if you have friends who are not too keen on R/Python or just interested in learning something awesome share this blog with them as I focus on using Julia for Data Science.

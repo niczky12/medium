@@ -1,0 +1,261 @@
+Diving deeper into DataFrames.jl, we'll explore how to do boolean indexing on dataframes, learn how to sort our data and aggregate it to our hearts' content. In the final section, we'll also touch upon the de-facto method for doing data munging: the split-apply-combine paradigm.
+
+
+First, we need to pick a dataset from the RDatasets package. This will save us the trouble of reading in a flat file. If you want to know how to do that, check out my earlier post on CSV.jl and data importing here.
+Let's import the packages and set up our dataset Males:
+using DataFrames
+using RDatasets
+using DataFrames
+
+males = dataset("plm", "Males")
+This dataset tracks more than 500 individuals hourly wages, work experience, education and other factors that might be remotely relevant for your salary. You can find more info about the dataset here. For our exercises, we'll only use the following columns:
+NR: Unique worker identifier.
+Year: Year of the observation.
+Wage: Log of hourly wage.
+Ethn: Ethnicity with levels black, hisp and other
+Exper: Years of experience.
+# subset the columns
+males = males[[:NR, :Year, :Wage, :Ethn, :Exper]];
+We already know from here how to check out the first few rows:
+head(males)
+NR	Year	Wage	Ethn	Exper
+1	13	1980	1.19754	other	1
+2	13	1981	1.85306	other	2
+3	13	1982	1.34446	other	3
+4	13	1983	1.43321	other	4
+5	13	1984	1.56813	other	5
+6	13	1985	1.69989	other	6
+A typical operation for dataframes is subsetting the data based on some criteria on the values. We can do this by first constructing a boolean index, which will be true for desired values and false otherwise. Then we can pass this in as the first argument for a DataFrame in brackets to select the required rows:
+my_index = males[:Year] .== 1980
+
+# I'm wrapping the results in head to use less space when printing
+head(males[my_index, :])
+NR	Year	Wage	Ethn	Exper
+1	13	1980	1.19754	other	1
+2	17	1980	1.67596	other	4
+3	18	1980	1.51596	other	4
+4	45	1980	1.89411	other	2
+5	110	1980	1.94877	other	5
+6	120	1980	0.258555	other	2
+We used to colon : to indicate that we want all available columns. You should read the above as such: give me all rows of males where my_index is true and return all available columns.
+Usually you would do this in one step as there really isn't any need to assign a separate boolean index vector:
+head(males[males[:Year] .== 1980, :])
+NR	Year	Wage	Ethn	Exper
+1	13	1980	1.19754	other	1
+2	17	1980	1.67596	other	4
+3	18	1980	1.51596	other	4
+4	45	1980	1.89411	other	2
+5	110	1980	1.94877	other	5
+6	120	1980	0.258555	other	2
+We can see that the above did what we asked it to do; only return rows for the Year 1980. But what if have multiple criteria? Let's say we want observations for the Year 1980, but only for Hispanic workers:
+head(males[(males[:Year] .== 1980) .& (males[:Ethn] .== "hisp"), :])
+NR	Year	Wage	Ethn	Exper
+1	1142	1980	1.41311	hisp	2
+2	1641	1980	2.11169	hisp	4
+3	1644	1980	0.560979	hisp	1
+4	1721	1980	1.78447	hisp	5
+5	1763	1980	0.6435	hisp	1
+6	2386	1980	1.19727	hisp	2
+As you can see the solution is to use the AND & logical operator to compare the 2 boolean vectors elementwise (hence .&). So we produce third vector that is true if and only if the Year is 1980 and Ethn is hisp.
+Practice makes perfect so let's select individuals who had more than 3 years' experience in 1980:
+head(males[(males[:Year] .== 1980) .& (males[:Exper] .> 3), :])
+NR	Year	Wage	Ethn	Exper
+1	17	1980	1.67596	other	4
+2	18	1980	1.51596	other	4
+3	110	1980	1.94877	other	5
+4	243	1980	1.56418	other	4
+5	424	1980	2.16584	other	5
+6	483	1980	1.68263	other	5
+If you need other logical operators, check out this page from the Julia manual. There you can learn about how to negate values with ! and make friends with the OR operator: |.
+For us, it's time to go on and learn how to sort our dataset. As you can image, this is again quite a common operation to do, but fortunately it's very simple to do. First, let's sort our data by the Year column.
+head(sort(males, cols = [:Year]))
+NR	Year	Wage	Ethn	Exper
+1	13	1980	1.19754	other	1
+2	17	1980	1.67596	other	4
+3	18	1980	1.51596	other	4
+4	45	1980	1.89411	other	2
+5	110	1980	1.94877	other	5
+6	120	1980	0.258555	other	2
+Easy right? Just pass in a DataFrame to the sort function and tell it which column to sort it by. You want it decreasing? Easy does it:
+head(sort(males, cols = [:Year], rev = true))
+NR	Year	Wage	Ethn	Exper
+1	13	1987	1.66919	other	8
+2	17	1987	1.82033	other	11
+3	18	1987	2.87316	other	11
+4	45	1987	2.13569	other	9
+5	110	1987	2.11239	other	12
+6	120	1987	2.14812	other	9
+As you guessed, we can also send in multiple columns to sort by as the cols argument is already a vector.
+head(sort(males, cols = [:Year, :NR]))
+NR	Year	Wage	Ethn	Exper
+1	13	1980	1.19754	other	1
+2	17	1980	1.67596	other	4
+3	18	1980	1.51596	other	4
+4	45	1980	1.89411	other	2
+5	110	1980	1.94877	other	5
+6	120	1980	0.258555	other	2
+One important consideration in Data Science is your memory footprint. All of the above operations returned a copy of the dataframe, leaving our original dataset alone:
+# look it's still not sorted by Year and NR
+head(males)
+NR	Year	Wage	Ethn	Exper
+1	13	1980	1.19754	other	1
+2	13	1981	1.85306	other	2
+3	13	1982	1.34446	other	3
+4	13	1983	1.43321	other	4
+5	13	1984	1.56813	other	5
+6	13	1985	1.69989	other	6
+If you want to save memory and you don't want to reassign the data, but rather sort the DataFrame in place, you can use sort! instead. The ! at the end of functions is a standard notation in Julia indicating that the inputs will be mutated. Let's see how this works.
+# Note how I'm not assigning this to anything
+sort!(males, cols = [:Year, :NR]);
+
+# But males is now ordered differently
+head(males)
+NR	Year	Wage	Ethn	Exper
+1	13	1980	1.19754	other	1
+2	17	1980	1.67596	other	4
+3	18	1980	1.51596	other	4
+4	45	1980	1.89411	other	2
+5	110	1980	1.94877	other	5
+6	120	1980	0.258555	other	2
+Now we know how to index and sort our DataFrames. That's interesting, but what would be even more interesting is if we didn't have to look through all these observations by eye. What if we could somehow aggregate our data and collect some interesting stats?
+Well, that's called a GROUP BY operation in SQL and we have something similar in dataframes. For starters, let's do something very simple. Let's figure out how many observations (rows) we have per year:
+by(males, [:Year], nrow)
+Year	x1
+1	1980	545
+2	1981	545
+3	1982	545
+4	1983	545
+5	1984	545
+6	1985	545
+7	1986	545
+8	1987	545
+Wow, that was easy. But how does this work? The first argument to by is the DataFrame we want to aggregate. The second argument is a vector of column names that we want to aggregate by. Finally we tell by() what to do with each group. In this case we want to know the number of observations per group, so we pass a function nrow which does exactly that.
+To summarise, we need a DataFrame, grouping columns and a function to apply to each group. With Julia's anonymous functions the above is equivalent to this:
+by(males, [:Year], df -> nrow(df))
+Year	x1
+1	1980	545
+2	1981	545
+3	1982	545
+4	1983	545
+5	1984	545
+6	1985	545
+7	1986	545
+8	1987	545
+I think this tells us a bit more about how this works. This is how I read this: split the dataset males by the column Year and then for each split smaller dataset df apply the function nrow to them. Finally collect the results into a dataframe, so that we end up with a dataframe of 2 columns: one denoting the split (Year) and another with our nrow results.
+What you witnessed here is actually the split-apply-combine paradigm. Learn how to do this quickly and efficiently and you'll be able to extract all the information you'll ever need from most datasets!
+Let's do some more practice. What were the workers average Wage per year?
+by(males, [:Year], df -> mean(df[:Wage]))
+Year	x1
+1	1980	1.39348
+2	1981	1.51287
+3	1982	1.57167
+4	1983	1.61926
+5	1984	1.69029
+6	1985	1.73941
+7	1986	1.79972
+8	1987	1.86648
+I know what you're thinking. Why is that column called x1? That's ugly and will make my life harder later on when I have to remember what the numbers represent. Don't worry, we can pass almost any function we like to into by() so we can actually create a DataFrame with new column names:
+by(males, [:Year], df -> DataFrame(wage_avg = mean(df[:Wage])))
+Year	wage_avg
+1	1980	1.39348
+2	1981	1.51287
+3	1982	1.57167
+4	1983	1.61926
+5	1984	1.69029
+6	1985	1.73941
+7	1986	1.79972
+8	1987	1.86648
+Much neater. Let's see if we can extend this to collect multiple stats on each split:
+by(males, [:Year],
+    df -> DataFrame(wage_avg = mean(df[:Wage]),
+        people = length(unique(df[:NR]))))
+Year	wage_avg	people
+1	1980	1.39348	545
+2	1981	1.51287	545
+3	1982	1.57167	545
+4	1983	1.61926	545
+5	1984	1.69029	545
+6	1985	1.73941	545
+7	1986	1.79972	545
+8	1987	1.86648	545
+Here we not only collect the average wage per year but also our sample size - the number of unique workers - for each year.
+The above is really powerful and can help you a lot when investigating datasets. But we can make it even more powerful by using method chaining. What??
+I know, sounds scary, but let's introduce this concept with some simple examples first.
+Let's say you have a vector of 3 values: [1,2,3]. You want to square all values, sum them up and then take the sqrt of the result. You could do that this way:
+sqrt(sum(([1,2,3] .^ 2)))
+3.7416573867739413
+Notice how we have to write the above inside out as functions. We first write sqrt and then sum etc instead of starting with squaring as in our description. Well, we can do the above using method chaining, using the |> operator built into Julia:
+[1,2,3] |> x->x.^2 |> sum |> sqrt
+3.7416573867739413
+This gives us the same exact result. Let's break this down further: First, we have our array [1,2,3] then we pass that array to a function with |>. This function is an anonymous function that takes an array x and squares it's elements. Then we pass this result onto the sum function and finally we square root this number.
+Why would we use this? Well, this allows us to write quick and dirty anonymous functions chained together to do some fancy aggregations.
+As an example, imagine that we want to get the first and last recorded wage of each individual. Since we know how to sort and split dataframes we can do this:
+firstlast = by(males, [:NR],
+    df -> sort(df, cols = [:Year]) |>
+    sorted_df -> DataFrame(first = sorted_df[:Wage][1], last = sorted_df[:Wage][end])
+    )
+head(firstlast)
+NR	first	last
+1	13	1.19754	1.66919
+2	17	1.67596	1.82033
+3	18	1.51596	2.87316
+4	45	1.89411	2.13569
+5	110	1.94877	2.11239
+6	120	0.258555	2.14812
+In the first step we sort the split dataframes and then we take this sorted_df and apply another function which extracts the first and last Wage values.
+Let's do a quick sense check to see if this indeed does what we wanted:
+males[(males[:NR] .== 13) .& (males[:Year] in [1980, 1987]), [:NR, :Year, :Wage]]
+NR	Year	Wage
+Yep, works. So let's simplify:
+firstlast = by(males, [:NR],
+    df -> sort(df, cols = [:Year])[:Wage] |>
+    wage -> DataFrame(first = wage[1], last = wage[end])
+    )    
+head(firstlast)
+NR	first	last
+1	13	1.19754	1.66919
+2	17	1.67596	1.82033
+3	18	1.51596	2.87316
+4	45	1.89411	2.13569
+5	110	1.94877	2.11239
+6	120	0.258555	2.14812
+Pretty neat, right? Imagine the kinds of crazy analysis you could do with these? Let's practice some more. Let's create a column called is_lower that is true if the employee had a lower finishing salary than his best salary.
+First step, we need to find out their first and last salary as before, but now we also need to store the maximum salary value too:
+finishers = by(males, [:NR],
+    df -> sort(df, cols = [:Year])[:Wage] |>
+    wage -> DataFrame(first = wage[1], last = wage[end], max = maximum(wage)))
+
+finishers[:is_lower] = finishers[:last] .< finishers[:max]
+
+head(finishers)
+NR	first	last	max	is_lower
+1	13	1.19754	1.66919	1.85306	true
+2	17	1.67596	1.82033	1.82033	false
+3	18	1.51596	2.87316	2.87316	false
+4	45	1.89411	2.13569	2.13569	false
+5	110	1.94877	2.11239	2.20252	true
+6	120	0.258555	2.14812	2.14812	false
+This looks like it's working so let's clean up our code a bit as we don't actually need to store the first/last values:
+finsihers = by(males, [:NR],
+    df -> sort(df, cols = [:Year])[:Wage] |> 
+    wage -> DataFrame(is_lower = maximum(wage) > wage[end]))
+
+head(finsihers)
+NR	is_lower
+1	13	true
+2	17	false
+3	18	false
+4	45	false
+5	110	true
+6	120	false
+Finally, we can merge the above back to the original dataset:
+new_males = join(males, finishers, on = :NR)
+head(new_males)
+NR	Year	Wage	Ethn	Exper	first	last	max	is_lower
+1	13	1980	1.19754	other	1	1.19754	1.66919	1.85306	true
+2	17	1980	1.67596	other	4	1.67596	1.82033	1.82033	false
+3	18	1980	1.51596	other	4	1.51596	2.87316	2.87316	false
+4	45	1980	1.89411	other	2	1.89411	2.13569	2.13569	false
+5	110	1980	1.94877	other	5	1.94877	2.11239	2.20252	true
+6	120	1980	0.258555	other	2	0.258555	2.14812	2.14812	false
+And that's it folks. Hope you liked this hands on tutorial into 'DataFrames.jl'. Now you know the syntax for indexing, sorting, aggregating your dataframes and with chaining you can also look cool while doing it.

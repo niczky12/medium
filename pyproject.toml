@@ -1,3 +1,27 @@
 [tool.black]
 line-length = 60
 py36 = true
+
+[tool.poetry]
+name = "medium"
+version = "0.1.0"
+description = ""
+authors = ["Bence Komarniczky <niczky12@gmail.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<3.10"
+numpy = "^1.20.3"
+pandas = "^1.2.4"
+google-cloud-bigquery = "^2.17.0"
+kaggle = "^1.5.12"
+sklearn = "^0.0"
+
+[tool.poetry.dev-dependencies]
+ipython = "^7.23.1"
+pre-commit = "^2.13.0"
+jupyter = "^1.0.0"
+ipykernel = "^5.5.5"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

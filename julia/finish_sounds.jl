@@ -1,4 +1,3 @@
-using ProgressBars
 using WAV
 
 # let's get some sounds

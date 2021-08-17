@@ -2,28 +2,19 @@
 
 using Test
 import Random
+import StatsBase
 using Crayons
-
-# board is a simple nxn matrix
-
-"""
-    Merge the compatible items together on one line.
-"""
-function merge(row)
-    return
-end
-
 
 """
     Push the items to the side of the line or row.
 """
-function push_line(line; reverse=false)
+function push_line(line; rev=false)
     
     new_line = similar(line)
     valid_numbers = collect(skipmissing(line))
     n = length(valid_numbers)
 
-    if !reverse
+    if !rev
         new_line[end-n+1:end] .= valid_numbers
     else
         new_line[1:n] .= valid_numbers
@@ -38,30 +29,48 @@ end
 @test !isequal(push_line([3, 2, 1]), [1, 2, 3])
 @test isequal(push_line([1, 3, 1]), [1, 3, 1])
 @test isequal(push_line([3, missing, 2]), [missing, 3, 2])
-@test isequal(push_line([3, missing, 2]; reverse=true), [3, 2, missing])
+@test isequal(push_line([3, missing, 2]; rev=true), [3, 2, missing])
 @test isequal(push_line([missing, missing, missing]), [missing, missing, missing])
-@test isequal(push_line([missing, missing, missing]; reverse=true), [missing, missing, missing])
+@test isequal(push_line([missing, missing, missing]; rev=true), [missing, missing, missing])
 
 
 function push_board(board, direction::Symbol)
+    @assert direction ∈ (:up, :down, :left, :right)
+
     new_board = copy(board)
 
-    reverse = direction ∈ (:left, :up)
+    is_reversed = direction ∈ (:left, :up)
        
     n = size(board, 1)
 
     if direction in (:left, :right)
-        for i in 1:n
-            new_board[i, :] = push_line(board[i, :]; reverse=reverse)
+        for row_idx in 1:n
+            new_board[row_idx, :] = push_line(board[row_idx, :]; rev=is_reversed)
         end
     else
-        for i in 1:n
-            new_board[:, i] = push_line(board[:, i]; reverse=reverse)
+        for col_idx in 1:n
+            new_board[:, col_idx] = push_line(board[:, col_idx]; rev=is_reversed)
         end
     end
 
     return new_board
 end
+
+"""
+    add_tile!(board)
+
+    Modify and existing board by adding filling a new tile randomly.
+    We pick from 3 possible values with different probabilities.
+"""
+function add_tile!(board)
+
+    empty_cells = findall(ismissing, board)
+    fill_position = StatsBase.sample(empty_cells)
+    fill_value = StatsBase.sample(1:3, StatsBase.Weights([0.6, 0.3, 0.1]))
+
+    board[fill_position] = fill_value
+end
+
 
 function initialise_board(n; seed=0)
 
@@ -74,77 +83,66 @@ function initialise_board(n; seed=0)
     board = zeros(Union{Missing, Int64}, n, n)
     board .= missing
 
-    num_cells = n^2
-    num_fill_cells = rand(1:n-1)
-    fill_cell_pos = Random.randperm(num_cells)[1:num_fill_cells]
-    fill_cell_val = Random.rand(0:2, num_fill_cells)
+    for _ in 1:rand(1:n-1)
+        add_tile!(board)
+    end
 
-    board[fill_cell_pos] .= fill_cell_val
     return board
 end
 
-b = initialise_board(3; seed=42)
-
-push_board(b, :left)
-push_board(b, :right)
-push_board(b, :up)
-push_board(b, :down)
+@test all(initialise_board(2, seed=42) .=== [missing missing; 2 missing])
 
 
-b[1, :]
-b[:, 1]
-
-function merge_line(line)
+function merge_line(line; rev=false)
 
     n = length(line)
     l = copy(line)
 
-    for i in 1:(n-1)
+    # rev is true for up and left directions
+    reverser = rev ? identity : reverse
+
+    for i in reverser(1:(n-1))
         if ismissing(l[i])
             continue
         end
 
+        # we use === to handle the case if one is missing
         if l[i] === l[i + 1]
-            l[i] += 1
-            l[i + 1] = missing
+            if !rev
+                l[i + 1] += 1
+                l[i] = missing
+            else
+                # increment 1 tile and set remove the other
+                l[i] += 1
+                l[i + 1] = missing
+            end
         end
     end
 
     return l
 end
 
-line = b[1, :]
-line[1] = 1
-line[2] = 1
-
-merge_line(line)
-
 function merge_board(board, direction::Symbol)
     @assert direction ∈ (:up, :down, :left, :right)
     
     new_board = copy(board)
+    is_reversed = direction ∈ (:up, :left)
 
     n = size(board, 1)
 
     if direction ∈ (:up, :down)
-        for column_idx in 1:n
-            new_board[:, column_idx] = merge_line(board[:, column_idx])
+        for col_idx in 1:n
+            new_board[:, col_idx] = merge_line(board[:, col_idx], rev=is_reversed)
         end
 
     else
         for row_idx in 1:n
-            new_board[row_idx, :] = merge_line(board[row_idx, :])
+            new_board[row_idx, :] = merge_line(board[row_idx, :], rev=is_reversed)
         end
     end
     return new_board
 end
 
-b[2, 2] = 1
-b[3, 1] = 1
-
-
-merge_board(b, :up)
-merge_board(b, :right)
 
 function swipe_board(board, direction::Symbol)
 
@@ -154,25 +152,6 @@ function swipe_board(board, direction::Symbol)
 
     return new_board
 end
-
-
-swipe_board(b, :left)
-swipe_board(b, :right)
-swipe_board(b, :down)
-swipe_board(b, :up)
-
-
-
-
-
-b1 = "/------\\\n| 2048 |\n\\------/"
-
-print(Crayon(background=:blue, foreground=:black), b1)
-
-
-# doesn't support centering of text
-# import Format
-
 
 function centered_format(s, size, fill)
 
@@ -188,6 +167,22 @@ function print_box_part(value, part::Symbol)
 
     @assert part ∈ (:top, :middle, :bottom)
 
+    # colours taken from DuckDuckGo's game
+    colours = Dict(
+        missing => Crayon(bold=true, foreground=:white, background=:white),
+        1 => Crayon(bold=true, foreground=:white, background=(124,181,226)),
+        2 => Crayon(bold=true, foreground=:white, background=(68,149,212)),
+        3 => Crayon(bold=true, foreground=:white, background=(47,104,149)),
+        4 => Crayon(bold=true, foreground=:white, background=(245,189,112)),
+        5 => Crayon(bold=true, foreground=:white, background=(242,160,50)),
+        6 => Crayon(bold=true, foreground=:white, background=(205,136,41)),
+        7 => Crayon(bold=true, foreground=:white, background=(227,112,81)),
+        8 => Crayon(bold=true, foreground=:white, background=(227,82,123)),
+        9 => Crayon(bold=true, foreground=:white, background=(113,82,227)),
+        10 => Crayon(bold=true, foreground=:white, background=(82,123,227)),
+        11 => Crayon(bold=true, foreground=:white, background=(227,82,195)),
+    )
+    
     if ismissing(value)
         x = ""
     else
@@ -195,27 +190,31 @@ function print_box_part(value, part::Symbol)
     end
 
     parts = Dict(
-        :top => "/----------\\",
+        :top => centered_format("-", 12, '-'),
         :middle => "|$(centered_format(x, 10, ' '))|",
-        :bottom => "\\----------/"
+        :bottom => centered_format("-", 12, '-')
     )
 
-    print(parts[part])
+    print(colours[value], parts[part])
 end
 
 
-print_box_part(4, :top)
-print_box_part(4, :middle)
-print_box_part(4, :bottom)
+function print_board(board)
 
-c = Crayon(background=:green)
-text = "hello"
+    n = size(board, 1)
 
-xs = (c, text)
-xy = (text,)
-
-print(xs...)
-print(xy...)
+    for row_idx in 1:n
+        for part in (:top, :middle, :bottom)
+            for col_idx in 1:n
+                value = board[row_idx, col_idx]
+                print_box_part(value, part)
+                print(Crayon(reset=true), " ")
+            end
+            println()
+        end
+        println()
+    end
+end
 
 
 function print_score(board)
@@ -230,28 +229,50 @@ end
 
 
 
-function print_board(board)
+# b = initialise_board(4)
+# print_board(b)
 
-    n = size(board, 1)
+have_lost(board) = findfirst(ismissing, board) === nothing
 
-    for row_idx in 1:n
-        for part in (:top, :middle, :bottom)
-            for col_idx in 1:n
-                value = board[row_idx, col_idx]
-                print_box_part(value, part)
-                print(" ")
-            end
-            print("\n")
+
+function game(n)
+
+    board = initialise_board(n)
+
+    input_mapping = Dict(
+        'w' => :up,
+        'd' => :right,
+        's' => :down,
+        'a' => :left)
+
+    while true
+        if have_lost(board)
+            println("YOU LOST!")
+            break
+        elseif maximum(skipmissing(board)) == 11
+            println("YOU WON!")
+            break
         end
-        print("\n")
+
+        # clear all output
+        println("\33[2J")
+        add_tile!(board)
+        print_score(board)
+        print_board(board)
+
+        # wait for correct input
+        user_input = 'i'
+        while user_input ∉ keys(input_mapping)
+            user_input = readline(keep=true)[1]
+            print(user_input) 
+        end
+
+        direction = input_mapping[user_input]
+        board = swipe_board(board, direction)
     end
+
+    println("Final score: $(sum(2 .^ skipmissing(board)))")
+
 end
 
-print_score(b)
-print_board(b)
-
-for board_n in 2:6
-    b2 = initialise_board(board_n)
-    print_score(b2)
-    print_board(b2)
-end
+game(3)

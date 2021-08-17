@@ -21,9 +21,14 @@ sounds = Dict(
 # sounds["game_over"]
 # wavplay(sounds["game_over"][1], sounds["game_over"][2])
 
+function beep(sound)
+    wavplay(sounds[sound][1], sounds[sound][2])
+end
+
+
 macro beep(expression, sound)
     res = eval(expression)
-    wavplay(sounds[sound][1], sounds[sound][2])
+    beep(sound) 
     return res
 end
 

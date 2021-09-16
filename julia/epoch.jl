@@ -1,6 +1,8 @@
 # TODO add docs to this file
-# TODO move to Pluto
+# TODO move to Pluto, make sure to print flux version
+# TODO add a plot for predictions and errors
 # TODO recommend settings to change and play around with
+# stuff I didn't use: cuda, callbacks
 # TODO write up article
 using Flux
 using Dates

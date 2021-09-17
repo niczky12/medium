@@ -1,4 +1,3 @@
-# TODO write up article
 using Flux
 using Dates
 import Random

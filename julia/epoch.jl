@@ -1,8 +1,3 @@
-# TODO add docs to this file
-# TODO move to Pluto, make sure to print flux version
-# TODO add a plot for predictions and errors
-# TODO recommend settings to change and play around with
-# stuff I didn't use: cuda, callbacks
 # TODO write up article
 using Flux
 using Dates
@@ -53,11 +48,11 @@ ys = hcat.(partition(ys, batch_size)...)
 model = Dense(6, 1, identity)
 
 
-# model = Chain(
-#     Dense(6, 8, σ),
-#     Dense(8, 8, σ),
-#     Dense(8, 1, identity)
-# )
+model = Chain(
+    Dense(6, 8, σ),
+    Dense(8, 8, σ),
+    Dense(8, 1, identity)
+)
 
 
 #Our loss function to minimize

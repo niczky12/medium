@@ -24,13 +24,26 @@ end
 
 
 iter = ProgressBar(1:100)
+# the printer doens't update the decimals!!!
 for i in iter
     # ... Neural Network Training Code
     sleep(0.1)
     loss = exp(-i)
     set_multiline_postfix(iter,
-        "Test 1: $(rand())\nTest 2: $(rand())\nTest 3: $loss")
+        "i: $i\nLinear: $(i/100)\nLog: $(log10(i)/2)")
 end
+
+using Printf
+for i in iter
+    # ... Neural Network Training Code
+    sleep(0.1)
+    loss = exp(-i)
+    line_to_print = @sprintf("i: %d\nLinear: %2.2f\nLog: %2.2f", i, i/100, log10(i)/2)
+
+    set_multiline_postfix(iter,
+        line_to_print)
+end
+
 
 
 # parallel for loops
@@ -94,7 +107,6 @@ iter = ProgressBar(1:50)
 using Printf
 
 for i in iter
-    # ... Neural Network Training Code
     start!(recorder)
     fib(i)
     finish!(recorder)

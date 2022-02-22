@@ -20,7 +20,6 @@ using Plots
 # ╔═╡ 06202e8d-a08f-4e59-9051-8ff6a258b1b1
 using Markdown
 
-
 # ╔═╡ 1c7b378e-2aaf-45d5-95a4-ebaab996be73
 using InteractiveUtils
 
@@ -35,10 +34,13 @@ We will estimate π using polygons. The circumference of the circle with radius 
 """
 
 # ╔═╡ 697ed713-93cd-4ba0-a38f-ed5cefe9d103
-function circumference_polygon(sides, radius=1)
-	# using law of sines
+function circumference_polygon(sides, radius=1.0)
+	# inner angle
 	α = 2π / sides
+	# angle between side and vertex-center line
 	β = (π - α) / 2
+	
+	# using law of sines
 	side_length = radius * sin(α) / sin(β)
 
 	return side_length * sides
@@ -49,7 +51,7 @@ end
 @test circumference_polygon(4) == 2^0.5 * 4
 
 # ╔═╡ 514c782e-b8c8-43fd-9262-4d27f37e5662
-# this should be 4 times √2
+
 2^0.5 * 4
 
 # ╔═╡ 2a840cd8-8002-42f8-8634-d1e95905aede
@@ -77,6 +79,7 @@ begin
 end
 
 # ╔═╡ 834bee35-c84b-43a1-9486-e6ddbad3d3da
+# how far off are we?
 π - estimate_pi(100)
 
 # ╔═╡ 7e1b9513-978e-4d0d-b61b-0d433ea87c5d
